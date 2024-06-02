@@ -11,6 +11,7 @@
 
 
 #Written by UnicornChowder & Codeuccino
+optimized for Linux
 
 from PIL import Image, ImageDraw
 import random
