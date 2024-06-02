@@ -7,10 +7,10 @@
 
 
 
-# In[5]:
+# In[2]:
 
 
-#Written by UnicornChowder
+#Written by UnicornChowder & Codeuccino
 
 from PIL import Image, ImageDraw
 import random
@@ -786,8 +786,195 @@ if ( gif == "yes" ):
 
 if ( gif == "yes" ):
     os.rename( "img", file )
+    print("Smooth Gif? (yes/no) (WARNING: This may take hours or crash your python kernel depending on your hardware!)")
+    smooth = input()
 
-print("Complete!")
+if ( smooth == "yes" ):
+    import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import tensorflow as tf
+    from tensorflow.keras.applications.vgg16 import preprocess_input, VGG16
+    from tensorflow.keras.preprocessing import image
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+    from tensorflow.keras import layers, models
+    from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    from PIL import Image
+    
+    # Set the directories
+    images_dir = './frames'
+    reordered_dir = './Reordered Frames'
+    output_gif_path = './smoothed.gif'
+    ground_truth_dir = './ground truth'
+    
+    # Section 1: Define the CNN model
+    def build_model():
+        base_model = VGG16(weights='imagenet', include_top=False, input_shape=(1024, 1024, 3))
+        base_model.trainable = False  # Freeze the base model
+    
+        model = models.Sequential([
+            base_model,
+            layers.Flatten(),
+            layers.Dense(512, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(256, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(128, activation='relu'),
+            layers.Reshape((128, 1)),  # Reshape to sequence format
+            layers.Conv1D(1, 1, activation='linear')  # Output sequence of smoothness scores
+        ])
+        model.compile(optimizer='adam', loss=smoothness_loss)
+        return model
+    
+    def smoothness_loss(y_true, y_pred):
+        # y_true is not used in this unsupervised loss function
+        diff = tf.reduce_sum(tf.abs(y_pred[:, 1:, :] - y_pred[:, :-1, :]), axis=[1, 2])
+        return tf.reduce_mean(diff)
+    
+    # Section 2: Load frames and preprocess images
+    def load_frames(images_dir):
+        frames = []
+        for root, _, files in os.walk(images_dir):
+            if os.path.basename(root).startswith("GIF"):
+                for filename in sorted(files):
+                    if filename.endswith(".png"):
+                        image_path = os.path.join(root, filename)
+                        img = image.load_img(image_path, target_size=(1024, 1024))
+                        img_array = image.img_to_array(img)
+                        frames.append((filename, img_array))
+        return frames
+    
+    # Section 3: Train the model with augmented data
+    def train_model_with_augmentation(model, frames):
+        datagen = ImageDataGenerator(
+            rotation_range=20,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            fill_mode='nearest',
+            preprocessing_function=preprocess_input
+        )
+    
+        frame_images = np.array([frame[1] for frame in frames])
+        frame_images = preprocess_input(frame_images)
+    
+        train_generator = datagen.flow(frame_images, frame_images, batch_size=32)
+    
+        # Early stopping and learning rate reduction callbacks
+        early_stopping = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True)
+        reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.2, patience=5, min_lr=1e-6)
+    
+        model.fit(train_generator, epochs=50, callbacks=[early_stopping, reduce_lr])
+    
+    # Section 7: Predict smoothness between frames
+    def predict_smoothness(model, frame1, frame2):
+        img_array1 = frame1[1]  # Accessing the image array from the tuple
+        img_array2 = frame2[1]  # Accessing the image array from the tuple
+        diff = np.abs(img_array1 - img_array2)
+        diff = np.expand_dims(diff, axis=0)  # Add a new axis for the batch dimension
+        smoothness = model.predict(diff)
+        return smoothness[0][0]  # Assuming model.predict returns a 2D array
+    
+    # Section 8: Calculate pairwise smoothness scores
+    def calculate_smoothness_matrix(model, frames):
+        num_frames = len(frames)
+        smoothness_matrix = np.zeros((num_frames, num_frames))
+        for i in range(num_frames):
+            for j in range(num_frames):
+                if i != j:
+                    smoothness_matrix[i, j] = predict_smoothness(model, frames[i], frames[j])
+        print("Smoothness matrix calculation complete.")
+        return smoothness_matrix
+    
+    # Section 9: Find the smoothest sequence of frames
+    def find_smoothest_sequence(smoothness_matrix):
+        num_frames = smoothness_matrix.shape[0]
+        visited = [False] * num_frames
+        sequence = []
+        current_frame = 0
+        sequence.append(current_frame)
+        visited[current_frame] = True
+    
+        while len(sequence) < num_frames:
+            next_frame = np.argmin(smoothness_matrix[current_frame] + np.where(visited, np.inf, 0))
+            if visited[next_frame]:
+                print("Error: Next frame already visited!")
+                break
+            sequence.append(next_frame)
+            visited[next_frame] = True
+            current_frame = next_frame
+        print("Smoothest sequence calculation complete.")
+    
+        return sequence
+    
+    # Section 10: Save reordered frames
+    def save_reordered_frames(reordered_frames, reordered_dir):
+        if not os.path.exists(reordered_dir):
+            os.makedirs(reordered_dir)
+        for idx, frame in enumerate(reordered_frames):
+            img = Image.fromarray(frame.astype('uint8'))
+            img.save(os.path.join(reordered_dir, f'reordered_frame_{idx:03d}.png'))
+        print("Reordered frames saved successfully.")
+    
+    # Section 11: Comparison with ground truth
+    def load_ground_truth_frames(ground_truth_dir):
+        frames = []
+        for filename in sorted(os.listdir(ground_truth_dir)):
+            if filename.endswith('.png'):
+                image_path = os.path.join(ground_truth_dir, filename)
+                img = image.load_img(image_path, target_size=(1024, 1024))
+                img_array = image.img_to_array(img)
+                frames.append(img_array)
+        return frames
+    
+    # Section 12: Merge frames into a GIF
+    def merge_frames_to_gif(reordered_dir, output_gif_path):
+        frame_paths = sorted([os.path.join(reordered_dir, frame) for frame in os.listdir(reordered_dir) if frame.endswith(".png")])
+        frames = [Image.open(frame_path) for frame_path in frame_paths]
+        frames[0].save(output_gif_path, save_all=True, append_images=frames[1:], duration=150, loop=0)
+        print("GIF created and saved successfully.")
+    
+    # Section 14: Visualize the smoothness matrix and sequences
+    def visualize_performance(smoothness_matrix, ground_truth_sequence, predicted_sequence):
+        plt.figure(figsize=(10, 8))
+    
+        # Plot the smoothness matrix
+        plt.subplot(2, 1, 1)
+        plt.imshow(smoothness_matrix, cmap='hot', interpolation='nearest')
+        plt.title('Smoothness Matrix')
+        plt.colorbar()
+    
+        # Plot the sequences
+        plt.subplot(2, 1, 2)
+        plt.plot(ground_truth_sequence, label='Ground Truth Sequence')
+        plt.plot(predicted_sequence, label='Predicted Sequence', linestyle='--')
+        plt.title('Frame Sequences')
+        plt.xlabel('Frame Index')
+        plt.ylabel('Frame Order')
+        plt.legend()
+    
+        plt.tight_layout()
+        plt.show()
+    
+    # Main execution
+    if __name__ == "__main__":
+        frames = load_frames(images_dir)
+        model = build_model()
+        train_model_with_augmentation(model, frames)
+        smoothness_matrix = calculate_smoothness_matrix(model, frames)
+        smoothest_sequence = find_smoothest_sequence(smoothness_matrix)
+    
+        # Save reordered frames based on the predicted sequence
+        reordered_frames = [frames[idx][1] for idx in smoothest_sequence]
+        save_reordered_frames(reordered_frames, reordered_dir)
+        merge_frames_to_gif(reordered_dir, output_gif_path)
+    
+        # Compare with ground truth and visualize performance
+        ground_truth_frames = load_ground_truth_frames(ground_truth_dir)
+        ground_truth_sequence = list(range(len(ground_truth_frames)))  # Example ground truth sequence
+        visualize_performance(smoothness_matrix, ground_truth_sequence, smoothest_sequence)
 
 
 # In[ ]:
@@ -803,7 +990,6 @@ print("Complete!")
 
 
 # In[ ]:
-
 
 
 
