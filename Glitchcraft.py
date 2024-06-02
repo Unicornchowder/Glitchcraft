@@ -11,7 +11,6 @@
 
 
 #Written by UnicornChowder & Codeuccino
-optimized for Linux
 
 from PIL import Image, ImageDraw
 import random
@@ -31,6 +30,11 @@ gif = input()
 #gif = "no"
 
 if ( gif == "yes" ):
+    os.rename( "img", file )
+    print("Smooth Gif? (yes/no) (WARNING: This may take hours or crash your python kernel depending on your hardware!). Limited to exactly 50 frames")
+    smooth = input()
+
+if ( gif == "yes" ):
     print("Framerate? Default is 150 ms per frame. Example: 150")
     framerate = input()
     #framerate = 150
@@ -39,11 +43,14 @@ loop = "yes"
 
 frameArr = []
 
-if ( gif == "yes" ):
+if ( gif == "yes" and smooth != "yes"):
     print( "How many frames?" )
     frames = input()
     #frames = 10
     framecount = frames
+    
+if ( smooth == "yes" ):
+    frames = 50
 
 if ( gif == "yes" ):
     genGif = True
@@ -784,11 +791,6 @@ if ( gif == "yes" ):
         shutil.move( file2, file3 )
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^#
-
-if ( gif == "yes" ):
-    os.rename( "img", file )
-    print("Smooth Gif? (yes/no) (WARNING: This may take hours or crash your python kernel depending on your hardware!)")
-    smooth = input()
 
 if ( smooth == "yes" ):
     import os
