@@ -936,7 +936,7 @@ if ( smooth == "yes" ):
     def merge_frames_to_gif(reordered_dir, output_gif_path):
         frame_paths = sorted([os.path.join(reordered_dir, frame) for frame in os.listdir(reordered_dir) if frame.endswith(".png")])
         frames = [Image.open(frame_path) for frame_path in frame_paths]
-        frames[0].save(output_gif_path, save_all=True, append_images=frames[1:], duration=150, loop=0)
+        frames[0].save(output_gif_path, save_all=True, append_images=frames[1:], duration = int(framerate), loop=0)
         print("GIF created and saved successfully.")
     
     # Section 14: Visualize the smoothness matrix and sequences
