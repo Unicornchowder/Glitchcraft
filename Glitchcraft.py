@@ -7,10 +7,10 @@
 
 
 
-# In[2]:
+# In[6]:
 
 
-#Written by UnicornChowder & Codeuccino
+#Written by UnicornChowder
 
 from PIL import Image, ImageDraw
 import random
@@ -22,17 +22,14 @@ import imageio.v3 as iio
 import shutil
 import glob
 
+smooth = "no"
+
 boxCount = -5
 gifdir = ""
 
 print( "Generate GIF?" )
 gif = input()
 #gif = "no"
-
-if ( gif == "yes" ):
-    os.rename( "img", file )
-    print("Smooth Gif? (yes/no) (WARNING: This may take hours or crash your python kernel depending on your hardware!). Limited to exactly 50 frames")
-    smooth = input()
 
 if ( gif == "yes" ):
     print("Framerate? Default is 150 ms per frame. Example: 150")
@@ -43,14 +40,11 @@ loop = "yes"
 
 frameArr = []
 
-if ( gif == "yes" and smooth != "yes"):
+if ( gif == "yes" ):
     print( "How many frames?" )
     frames = input()
     #frames = 10
     framecount = frames
-    
-if ( smooth == "yes" ):
-    frames = 50
 
 if ( gif == "yes" ):
     genGif = True
@@ -792,6 +786,11 @@ if ( gif == "yes" ):
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^#
 
+if ( gif == "yes" ):
+    os.rename( "img", file )
+    print("Smooth Gif? (yes/no) (WARNING: This may take hours or crash your python kernel depending on your hardware!)")
+    smooth = input()
+
 if ( smooth == "yes" ):
     import os
     import numpy as np
@@ -936,7 +935,7 @@ if ( smooth == "yes" ):
     def merge_frames_to_gif(reordered_dir, output_gif_path):
         frame_paths = sorted([os.path.join(reordered_dir, frame) for frame in os.listdir(reordered_dir) if frame.endswith(".png")])
         frames = [Image.open(frame_path) for frame_path in frame_paths]
-        frames[0].save(output_gif_path, save_all=True, append_images=frames[1:], duration = int(framerate), loop=0)
+        frames[0].save(output_gif_path, save_all=True, append_images=frames[1:], duration=150, loop=0)
         print("GIF created and saved successfully.")
     
     # Section 14: Visualize the smoothness matrix and sequences
@@ -979,7 +978,7 @@ if ( smooth == "yes" ):
         ground_truth_sequence = list(range(len(ground_truth_frames)))  # Example ground truth sequence
         visualize_performance(smoothness_matrix, ground_truth_sequence, smoothest_sequence)
 
-
+no
 # In[ ]:
 
 
